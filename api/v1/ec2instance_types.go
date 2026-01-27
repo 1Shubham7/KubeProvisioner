@@ -25,33 +25,45 @@ import (
 
 // Ec2InstanceSpec defines the desired state of Ec2Instance
 type Ec2InstanceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
-	AmiID             string            `json:"amiID,omitempty"`
-	SSHKey            string            `json:"sshkey,omitempty"`
-	InstanceType      string            `json:"instanceType,omitempty"`
-	SubNet            string            `json:"subnet"`
-	Tags              map[string]string `json:"tags"`
-	Storage           StorageConfig     `json:"storage"`
-	AdditionalStorage []StorageConfig   `json:"additionalStorage,omitempty"`
+	InstanceType      string            `json:"instanceType"`
+	AMIId             string            `json:"amiId"`
+	Region            string            `json:"region"`
+	AvailabilityZone  string            `json:"availabilityZone,omitempty"`
+	KeyPair           string            `json:"keyPair,omitempty"`
+	SecurityGroups    []string          `json:"securityGroups,omitempty"`
+	Subnet            string            `json:"subnet,omitempty"`
+	UserData          string            `json:"userData,omitempty"`
+	Tags              map[string]string `json:"tags,omitempty"`
+	Storage           StorageConfig     `json:"storage,omitempty"`
+	AssociatePublicIP bool              `json:"associatePublicIP,omitempty"`
 }
 
+
+// StorageConfig defines the storage configuration for the EC2 instance.
 type StorageConfig struct {
-	VolumeSize int    `json:"volumeSize"`
-	VolumeType string `json:"volumeType"`
+	RootVolume        VolumeConfig   `json:"rootVolume"`
+	AdditionalVolumes []VolumeConfig `json:"additionalVolumes,omitempty"`
+}
+
+// VolumeConfig defines the configuration for a volume.
+type VolumeConfig struct {
+	Size       int32  `json:"size"`
+	Type       string `json:"type,omitempty"`
+	DeviceName string `json:"deviceName,omitempty"`
+	Encrypted  bool   `json:"encrypted,omitempty"`
 }
 
 // Ec2InstanceStatus defines the observed state of Ec2Instance.
 type Ec2InstanceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	Phase      string `json:"phase,omitempty"`
-	InstanceID string `json:"instanceID,omitempty"`
-	PublicIP   string `json:"publicIP,omitempty"`
+	InstanceID string       `json:"instanceId,omitempty"`
+	State      string       `json:"state,omitempty"`
+	PublicIP   string       `json:"publicIP,omitempty"`
+	PrivateIP  string       `json:"privateIP,omitempty"`
+	PublicDNS  string       `json:"publicDNS,omitempty"`
+	PrivateDNS string       `json:"privateDNS,omitempty"`
+	LaunchTime *metav1.Time `json:"launchTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true

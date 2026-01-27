@@ -53,7 +53,7 @@ func (r *Ec2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	ec2Instance := &computev1.Ec2Instance{}
 	r.Get(ctx, req.NamespacedName, ec2Instance)
 
-	logger.Info()
+	logger.Info("")
 
 	return ctrl.Result{}, nil
 }
