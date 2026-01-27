@@ -47,9 +47,13 @@ type Ec2InstanceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.23.0/pkg/reconcile
 func (r *Ec2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	logger := logf.FromContext(ctx)
 
 	// TODO(user): your logic here
+	ec2Instance := &computev1.Ec2Instance{}
+	r.Get(ctx, req.NamespacedName, ec2Instance)
+
+	logger.Info()
 
 	return ctrl.Result{}, nil
 }
