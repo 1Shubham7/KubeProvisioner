@@ -18,11 +18,13 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	computev1 "github.com/1Shubham7/operator/api/v1"
@@ -113,8 +115,42 @@ func (r *Ec2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			r.Status().Update(ctx, ec2Instance)
 			return ctrl.Result{}, nil
 		}
+		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, nil
+
+	logger.Info("Creating new instance")
+
+	ec2Instance.Finalizers = append(ec2Instance.Finalizers, "ec2instance.compute.cloud.com")
+	if err := r.Update(ctx, ec2Instance); err != nil { // this will also trigger reconcile func
+		logger.Error(err, "failed to add finalizer")
+		return ctrl.Result{
+			Requeue: true,
+		}, err
+	}
+
+	createdInstanceInfo, err := createEc2Instance(ec2Instance)
+	if err != nil {
+		logger.Error(err, "Failed to create EC2 instance")
+		// Kubernetes will retry with exponential backoff
+		return ctrl.Result{}, err
+	}
+
+	ec2Instance.Status.InstanceID = createdInstanceInfo.InstanceID
+	ec2Instance.Status.State = createdInstanceInfo.State
+	ec2Instance.Status.PublicIP = createdInstanceInfo.PublicIP
+	ec2Instance.Status.PrivateIP = createdInstanceInfo.PrivateIP
+	ec2Instance.Status.PublicDNS = createdInstanceInfo.PublicDNS
+	ec2Instance.Status.PrivateDNS = createdInstanceInfo.PrivateDNS
+
+	err = r.Status().Update(ctx, ec2Instance)
+	if err != nil {
+		logger.Error(err, "Failed to update status")
+		// Kubernetes will retry with backoff
+		return ctrl.Result{}, err
+	}
+	logger.Info("Status updated - Reconcile loop will be triggered again")
+	// Kubernetes will not retry - done, wait for next event
+	return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

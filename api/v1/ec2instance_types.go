@@ -66,6 +66,15 @@ type Ec2InstanceStatus struct {
 	LaunchTime *metav1.Time `json:"launchTime,omitempty"`
 }
 
+type CreatedInstanceInfo struct {
+	InstanceID string `json:"instanceId"`
+	PublicIP   string `json:"publicIP"`
+	PrivateIP  string `json:"privateIP"`
+	PublicDNS  string `json:"publicDNS"`
+	PrivateDNS string `json:"privateDNS"`
+	State      string `json:"state"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
