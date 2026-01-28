@@ -77,14 +77,17 @@ type CreatedInstanceInfo struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// Ec2Instance is the Schema for the ec2instances API
+// +kubebuilder:printcolumn:name="InstanceType",type="string",JSONPath=".spec.instanceType",description="The EC2 instance type"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="The current state of the EC2 instance"
+// +kubebuilder:printcolumn:name="PublicIP",type="string",JSONPath=".status.publicIP",description="The public IP of the EC2 instance"
+// +kubebuilder:printcolumn:name="InstanceID",type="string",JSONPath=".status.instanceId",description="The AWS instance ID"
+// Ec2Instance is the Schema for the ec2instances API.
 type Ec2Instance struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// metadata is a standard object metadata
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// spec defines the desired state of Ec2Instance
 	// +required
@@ -92,7 +95,7 @@ type Ec2Instance struct {
 
 	// status defines the observed state of Ec2Instance
 	// +optional
-	Status Ec2InstanceStatus `json:"status,omitzero"`
+	Status Ec2InstanceStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -100,7 +103,7 @@ type Ec2Instance struct {
 // Ec2InstanceList contains a list of Ec2Instance
 type Ec2InstanceList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitzero"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Ec2Instance `json:"items"`
 }
 
