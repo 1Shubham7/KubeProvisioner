@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,12 +50,70 @@ type Ec2InstanceReconciler struct {
 func (r *Ec2InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
 	ec2Instance := &computev1.Ec2Instance{}
-	r.Get(ctx, req.NamespacedName, ec2Instance)
+	if err := r.Get(ctx, req.NamespacedName, ec2Instance); err != nil {
+		if errors.IsNotFound(err) {
+			logger.Info("No instance found - stoping the reconcile loop")
+			// Kubernetes will not retry
+			return ctrl.Result{}, nil
+		}
+		// Kubernetes will retry with exponential backoff
+		return ctrl.Result{}, err
+	}
 
-	logger.Info("")
+	//check if deletionTimestamp is not zero
+	if !ec2Instance.DeletionTimestamp.IsZero() {
+		logger.Info("Instance is being deleted, deleting the ec2 instance from aws as well")
+		_, err := deleteEc2Instance(ctx, ec2Instance)
+		if err != nil {
+			logger.Error(err, "Failed to delete EC2 instance")
+			// Kubernetes will retry with exponential backoff
+			return ctrl.Result{Requeue: true}, err
+		}
 
+		// Remove the finalizer
+		controllerutil.RemoveFinalizer(ec2Instance, "ec2instance.compute.cloud.com")
+		if err := r.Update(ctx, ec2Instance); err != nil {
+			logger.Error(err, "Failed to remove finalizer")
+			// Kubernetes will retry with exponential backoff
+			return ctrl.Result{Requeue: true}, err
+		}
+		// the instance state is terminated and the finalizer is removed
+		return ctrl.Result{}, nil
+	}
+
+	// If there is no instance ID, that means instance was not created
+	// This is to ensure we dont create two instances for same manifest
+	if ec2Instance.Status.InstanceID != "" {
+		logger.Info("Requested object already exists in Kubernetes. Not creating a new instance.", "instanceID", ec2Instance.Status.InstanceID)
+		
+		// Verify if the ec2 instance in aws is still running
+		instanceExist, instanceState, err := checkEC2InstanceExists(ctx, ec2Instance.Status.InstanceID, ec2Instance)
+		if err != nil {
+			// Instance might be terminated, clear status and recreate
+			ec2Instance.Status.InstanceID = ""
+			ec2Instance.Status.State = ""
+			ec2Instance.Status.PublicIP = ""
+			ec2Instance.Status.PrivateIP = ""
+			ec2Instance.Status.PublicDNS = ""
+			ec2Instance.Status.PrivateDNS = ""
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, ec2Instance)
+		}
+		if !instanceExist {
+			logger.Info("Instance does not exist or is not running", "instanceID", ec2Instance.Status.InstanceID)
+			ec2Instance.Status.State = "Unknown"
+			ec2Instance.Status.PublicIP = ""
+			r.Status().Update(ctx, ec2Instance)
+			return ctrl.Result{}, nil
+		}
+		if instanceExist && ec2Instance.Status.State == "Unknown" {
+			logger.Info("Found a running Instance", "instanceID", ec2Instance.Status.InstanceID)
+			ec2Instance.Status.State = string(instanceState.State.Name)
+			ec2Instance.Status.PublicIP = *instanceState.PublicIpAddress
+			r.Status().Update(ctx, ec2Instance)
+			return ctrl.Result{}, nil
+		}
+	}
 	return ctrl.Result{}, nil
 }
 
