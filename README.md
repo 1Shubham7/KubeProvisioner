@@ -11,11 +11,59 @@ KubeProvisioner bridges Kubernetes and AWS by implementing a custom controller f
 - Instance status syncing (state, IPs, DNS names)
 - EC2 instance termination on CR deletion (via finalizer)
 
+### Setup
+
+The chart is already generated and lives at `./dist/chart`. Install it with:
+
+```sh
+helm install ec2-instance --create-namespace -n ec2-operator \
+  --values ./dist/chart/values.yaml \
+  ./dist/chart/
+```
+
+You will have to create a sealed secret for your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. If you want to just supply AWS creds without using sealed secret, use `--set`:
+
+```sh
+helm install ec2-instance --create-namespace -n ec2-operator \
+  --values ./dist/chart/values.yaml \
+  --set controllerManager.container.env.AWS_ACCESS_KEY_ID=<your-key-id> \
+  --set controllerManager.container.env.AWS_SECRET_ACCESS_KEY=<your-secret> \
+  ./dist/chart/
+```
+
+To upgrade an existing release:
+
+```sh
+helm upgrade ec2-instance -n ec2-operator \
+  --values ./dist/chart/values.yaml \
+  ./dist/chart/
+```
+
+To uninstall:
+
+```sh
+helm uninstall ec2-instance -n ec2-operator
+```
+
 ## Demo
 
-<!-- Screenshots will be added here -->
+The operator is created in the ec2-operator ns.
 
-### Local development setup (kind cluster)
+![alt text](static/image.png)
+
+Then I am applying the sample manifest from kubernetes/sample-manifests/web-server.yaml
+
+![alt text](static/image-1.png)
+
+After some time the EC2 Instance is up and running
+
+![alt text](static/image-2.png)
+
+And if I check my AWS console, the EC2 Instance is created there as well
+
+![alt text](static/image-3.png)
+
+## Local development setup (kind cluster)
 
 **1. Start a kind cluster and make sure it's the active context:**
 
@@ -24,39 +72,30 @@ kind create cluster --name kubeprovisioner
 kubectl config use-context kind-kubeprovisioner
 ```
 
-**2. Install the CRD into the cluster:**
+**2. Install the operator via Helm:**
 
 ```sh
-make install
+helm install ec2-instance --create-namespace -n ec2-operator \
+  --values ./dist/chart/values.yaml \
+  --set controllerManager.container.env.AWS_ACCESS_KEY_ID=<your-key-id> \
+  --set controllerManager.container.env.AWS_SECRET_ACCESS_KEY=<your-secret> \
+  ./dist/chart/
 ```
 
-**3. Set your AWS credentials:**
+This installs the CRDs, RBAC, and the controller in one step.
 
-```sh
-export AWS_ACCESS_KEY_ID=your-access-key
-export AWS_SECRET_ACCESS_KEY=your-secret-key
-```
+> **Alternative — run the controller locally** (useful for iterating without rebuilding an image):
+>
+> ```sh
+> make install   # install CRDs only
+> export AWS_ACCESS_KEY_ID=your-access-key
+> export AWS_SECRET_ACCESS_KEY=your-secret-key
+> go run cmd/main.go
+> ```
 
-**4. Run the controller:**
+**3. Apply an `Ec2Instance` resource:**
 
-```sh
-go run cmd/main.go
-```
-
-**5. Apply an `Ec2Instance` resource:**
-
-```yaml
-apiVersion: compute.cloud.com/v1
-kind: Ec2Instance
-metadata:
-  name: my-instance
-spec:
-  instanceType: t3.micro
-  amiId: ami-0abcdef1234567890
-  region: us-east-1
-  keyPair: my-key-pair
-  subnet: subnet-0abc123
-```
+An example manifest is present in kubernetes/sample-manifests/web-server.yaml
 
 ```sh
 kubectl apply -f my-instance.yaml
@@ -78,17 +117,7 @@ kubectl delete ec2instance my-instance
 
 The operator will terminate the EC2 instance on AWS and then remove the resource from Kubernetes.
 
-## Getting Started
-
-### Prerequisites
-- go version v1.23.0+
-- docker version 17.03+
-- kubectl version v1.11.3+
-- kind (for local development)
-- Access to a Kubernetes v1.11.3+ cluster
-- AWS credentials with EC2 permissions
-
-### To Deploy on the cluster
+## Internal Commands
 
 **Build and push your image to the location specified by `IMG`:**
 
@@ -137,37 +166,6 @@ make uninstall
 ```sh
 make undeploy
 ```
-
-## Project Distribution
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/ec2operator:tag
-```
-
-**NOTE:** The makefile target mentioned above generates an `install.yaml`
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/ec2operator/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under `dist/chart`.
 
 ## Contributing
 
