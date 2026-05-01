@@ -1,0 +1,13 @@
+apiVersion: compute.cloud.com/v1
+kind: S3Bucket
+metadata:
+  name: my-app-assets
+  namespace: default
+spec:
+  bucketName: my-app-assets-kube-provisioner
+  region: us-east-1
+  versioning: true
+  tags:
+    env: dev
+    team: platform
+    managed-by: kubeprovisioner

@@ -1,0 +1,90 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: s3buckets.compute.cloud.com
+spec:
+  group: compute.cloud.com
+  names:
+    kind: S3Bucket
+    listKind: S3BucketList
+    plural: s3buckets
+    singular: s3bucket
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The S3 bucket name
+      jsonPath: .spec.bucketName
+      name: BucketName
+      type: string
+    - description: The current state of the S3 bucket
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: The S3 bucket endpoint
+      jsonPath: .status.endpoint
+      name: Endpoint
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: S3Bucket is the Schema for the s3buckets API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of S3Bucket
+            properties:
+              bucketName:
+                description: BucketName is the globally unique name for the S3 bucket.
+                type: string
+              region:
+                description: Region is the AWS region where the bucket will be created.
+                type: string
+              tags:
+                additionalProperties:
+                  type: string
+                description: Tags are key-value pairs applied to the S3 bucket.
+                type: object
+              versioning:
+                description: Versioning enables S3 versioning on the bucket.
+                type: boolean
+            required:
+            - bucketName
+            - region
+            type: object
+          status:
+            description: status defines the observed state of S3Bucket
+            properties:
+              bucketArn:
+                description: BucketARN is the ARN of the provisioned S3 bucket.
+                type: string
+              endpoint:
+                description: Endpoint is the HTTPS endpoint of the bucket.
+                type: string
+              state:
+                description: State is the current lifecycle state of the bucket.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

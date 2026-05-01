@@ -1,30 +1,16 @@
 # KubeProvisioner
 
-A Kubernetes operator that lets you manage AWS EC2 instances as native Kubernetes resources. Define your EC2 instances as custom resources (`Ec2Instance`) and the operator handles provisioning, lifecycle management, and cleanup automatically.
+KubeProvisioner is a Kubernetes operator that lets you manage cloud infrastructure as native Kubernetes resources. Instead of switching between the AWS console, Terraform, or CLI tools, you declare the resources you need in YAML — and KubeProvisioner creates, monitors, and cleans them up automatically.
 
-## Description
+The operator is built to grow. It currently supports AWS, and is designed to add new resource types and new cloud providers (GCP, Azure) without changing how you interact with it.
 
-KubeProvisioner bridges Kubernetes and AWS by implementing a custom controller for the `Ec2Instance` CRD. When you apply an `Ec2Instance` manifest, the operator calls the AWS EC2 API to launch the instance, waits for it to reach the running state, and syncs the instance details (instance ID, public/private IP, DNS, state) back to the resource's status. When you delete the resource, the operator terminates the corresponding EC2 instance and waits for it to be fully terminated before removing the finalizer.
 
-**What it manages:**
-- EC2 instance creation (AMI, instance type, key pair, subnet, security groups, storage, tags)
-- Instance status syncing (state, IPs, DNS names)
-- EC2 instance termination on CR deletion (via finalizer)
+## Setup
 
-### Setup
-
-The chart is already generated and lives at `./dist/chart`. Install it with:
+The Helm chart lives at `./dist/chart` and installs the CRDs, RBAC, and the controller in one step.
 
 ```sh
-helm install ec2-instance --create-namespace -n ec2-operator \
-  --values ./dist/chart/values.yaml \
-  ./dist/chart/
-```
-
-You will have to create a sealed secret for your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. If you want to just supply AWS creds without using sealed secret, use `--set`:
-
-```sh
-helm install ec2-instance --create-namespace -n ec2-operator \
+helm install kubeprovisioner --create-namespace -n kubeprovisioner \
   --values ./dist/chart/values.yaml \
   --set controllerManager.container.env.AWS_ACCESS_KEY_ID=<your-key-id> \
   --set controllerManager.container.env.AWS_SECRET_ACCESS_KEY=<your-secret> \
@@ -34,7 +20,7 @@ helm install ec2-instance --create-namespace -n ec2-operator \
 To upgrade an existing release:
 
 ```sh
-helm upgrade ec2-instance -n ec2-operator \
+helm upgrade kubeprovisioner -n kubeprovisioner \
   --values ./dist/chart/values.yaml \
   ./dist/chart/
 ```
@@ -42,151 +28,177 @@ helm upgrade ec2-instance -n ec2-operator \
 To uninstall:
 
 ```sh
-helm uninstall ec2-instance -n ec2-operator
+helm uninstall kubeprovisioner -n kubeprovisioner
 ```
 
-## Demo
+---
 
-The operator is created in the ec2-operator ns.
+## Usage
 
-![alt text](static/image.png)
+### EC2 Instance
 
-Then I am applying the sample manifest from kubernetes/sample-manifests/web-server.yaml
+```yaml
+apiVersion: compute.cloud.com/v1
+kind: Ec2Instance
+metadata:
+  name: my-web-server
+spec:
+  instanceType: t3.micro
+  amiId: ami-0c55b159cbfafe1f0
+  region: us-east-1
+  keyPair: my-key
+  subnet: subnet-abc123
+  tags:
+    env: dev
+    team: platform
+```
 
-![alt text](static/image-1.png)
+```sh
+kubectl apply -f my-instance.yaml
+kubectl get ec2instances -w
+```
 
-After some time the EC2 Instance is up and running
+The `State`, `PublicIP`, and `InstanceID` columns populate once the instance is running. To delete:
 
-![alt text](static/image-2.png)
+```sh
+kubectl delete ec2instance my-web-server
+```
 
-And if I check my AWS console, the EC2 Instance is created there as well
+The operator terminates the EC2 instance on AWS and then removes the CR.
 
-![alt text](static/image-3.png)
+---
 
-## Local development setup (kind cluster)
+### S3 Bucket
 
-**1. Start a kind cluster and make sure it's the active context:**
+```yaml
+apiVersion: compute.cloud.com/v1
+kind: S3Bucket
+metadata:
+  name: my-app-assets
+spec:
+  bucketName: my-app-assets-kube-provisioner
+  region: us-east-1
+  versioning: true
+  tags:
+    env: dev
+    team: platform
+```
+
+```sh
+kubectl apply -f my-bucket.yaml
+kubectl get s3buckets -w
+```
+
+The `BucketName`, `State`, and `Endpoint` columns populate once the bucket is ready. To delete:
+
+```sh
+kubectl delete s3bucket my-app-assets
+```
+
+> **Note:** The bucket must be empty before deletion. The operator will retry until it is empty.
+
+Sample manifests for both resources are in [`kubernetes/sample-manifests/`](./kubernetes/sample-manifests/).
+
+---
+
+## Local development (kind cluster)
+
+**1. Start a kind cluster:**
 
 ```sh
 kind create cluster --name kubeprovisioner
 kubectl config use-context kind-kubeprovisioner
 ```
 
-**2. Install the operator via Helm:**
+**2. Install via Helm:**
 
 ```sh
-helm install ec2-instance --create-namespace -n ec2-operator \
+helm install kubeprovisioner --create-namespace -n kubeprovisioner \
   --values ./dist/chart/values.yaml \
   --set controllerManager.container.env.AWS_ACCESS_KEY_ID=<your-key-id> \
   --set controllerManager.container.env.AWS_SECRET_ACCESS_KEY=<your-secret> \
   ./dist/chart/
 ```
 
-This installs the CRDs, RBAC, and the controller in one step.
-
-> **Alternative — run the controller locally** (useful for iterating without rebuilding an image):
->
-> ```sh
-> make install   # install CRDs only
-> export AWS_ACCESS_KEY_ID=your-access-key
-> export AWS_SECRET_ACCESS_KEY=your-secret-key
-> go run cmd/main.go
-> ```
-
-**3. Apply an `Ec2Instance` resource:**
-
-An example manifest is present in kubernetes/sample-manifests/web-server.yaml
+**Alternative — run the controller locally** (faster iteration without rebuilding the image):
 
 ```sh
-kubectl apply -f my-instance.yaml
+make install   # installs only the CRDs
+export AWS_ACCESS_KEY_ID=your-access-key
+export AWS_SECRET_ACCESS_KEY=your-secret-key
+go run cmd/main.go
 ```
 
-**6. Watch the instance status update:**
+---
+
+## Demo
+
+The operator running in the helm.ReleaseNS namespace:
+
+![Operator running](static/image.png)
+
+Applying the sample EC2 instance manifest:
+
+![Applying manifest](static/image-1.png)
+
+Instance comes up running:
+
+![Instance running](static/image-2.png)
+
+AWS console confirms the instance is live:
+
+![AWS console](static/image-3.png)
+
+---
+
+## Internal commands
+
+**Build and push the image:**
 
 ```sh
-kubectl get ec2instances -w
+make docker-build docker-push IMG=<registry>/kubeprovisioner:tag
 ```
 
-You'll see the `State`, `PublicIP`, and `InstanceID` columns populate once the instance is running.
-
-**7. Delete the instance:**
-
-```sh
-kubectl delete ec2instance my-instance
-```
-
-The operator will terminate the EC2 instance on AWS and then remove the resource from Kubernetes.
-
-## Internal Commands
-
-**Build and push your image to the location specified by `IMG`:**
-
-```sh
-make docker-build docker-push IMG=<some-registry>/ec2operator:tag
-```
-
-**Install the CRDs into the cluster:**
+**Install CRDs only:**
 
 ```sh
 make install
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+**Deploy the controller with a custom image:**
 
 ```sh
-make deploy IMG=<some-registry>/ec2operator:tag
+make deploy IMG=<registry>/kubeprovisioner:tag
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+**Apply all sample CRs:**
 
 ```sh
 kubectl apply -k config/samples/
 ```
 
-### To Uninstall
-
-**Delete the instances (CRs) from the cluster:**
+**Delete all sample CRs:**
 
 ```sh
 kubectl delete -k config/samples/
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+**Remove the CRDs:**
 
 ```sh
 make uninstall
 ```
 
-**UnDeploy the controller from the cluster:**
+**Remove the controller:**
 
 ```sh
 make undeploy
 ```
 
-## Contributing
-
-Contributions are welcome. Please open an issue or pull request on GitHub.
-
-**NOTE:** Run `make help` for more information on all potential `make` targets.
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html).
+Run `make help` for the full list of targets.
 
 ## License
 
 Copyright 2025.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for details.

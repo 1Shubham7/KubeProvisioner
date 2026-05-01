@@ -33,4 +33,30 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - s3buckets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - s3buckets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - s3buckets/status
+  verbs:
+  - get
+  - patch
+  - update
 {{- end -}}
