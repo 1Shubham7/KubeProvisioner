@@ -72,6 +72,13 @@ spec:
           capabilities:
             drop:
             - "ALL"
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
         livenessProbe:
           httpGet:
             path: /healthz

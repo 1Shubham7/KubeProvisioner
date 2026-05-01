@@ -44,6 +44,8 @@ spec:
               value: {{ $value }}
             {{- end }}
           {{- end }}
+          startupProbe:
+            {{- toYaml .Values.controllerManager.container.startupProbe | nindent 12 }}
           livenessProbe:
             {{- toYaml .Values.controllerManager.container.livenessProbe | nindent 12 }}
           readinessProbe:
