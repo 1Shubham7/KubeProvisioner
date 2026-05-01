@@ -1,0 +1,34 @@
+apiVersion: compute.cloud.com/v1
+kind: Ec2Instance
+metadata:
+  name: web-server-1
+  namespace: default
+spec:
+  instanceType: t2.micro
+  amiId: ami-0ff5003538b60d5ec
+  region: ap-south-1
+  availabilityZone: ap-south-1a
+  keyPair: smyik-keypair
+  securityGroups:
+    - sg-010242b2053cea80a
+  subnet: subnet-0a213b04359448ab4
+  userData: |
+    #!/bin/bash
+    yum update -y
+    yum install -y httpd
+    systemctl start httpd
+    systemctl enable httpd
+  tags:
+    Name: k8s-managed-web-server
+    ManagedBy: ec2-operator
+    Environment: production
+  storage:
+    rootVolume:
+      size: 10
+      type: gp3
+      encrypted: true
+    additionalVolumes:
+      - size: 20
+        type: gp3
+        deviceName: /dev/sdf
+        encrypted: true
