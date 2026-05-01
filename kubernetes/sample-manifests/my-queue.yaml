@@ -1,0 +1,14 @@
+apiVersion: compute.cloud.com/v1
+kind: SQSQueue
+metadata:
+  name: my-app-queue
+  namespace: default
+spec:
+  queueName: my-app-queue-kube-provisioner
+  region: us-east-1
+  visibilityTimeoutSeconds: 30
+  messageRetentionSeconds: 86400
+  tags:
+    env: dev
+    team: platform
+    managed-by: kubeprovisioner

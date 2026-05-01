@@ -4,7 +4,6 @@ KubeProvisioner is a Kubernetes operator that lets you manage cloud infrastructu
 
 The operator is built to grow. It currently supports AWS, and is designed to add new resource types and new cloud providers (GCP, Azure) without changing how you interact with it.
 
-
 ## Setup
 
 The Helm chart lives at `./dist/chart` and installs the CRDs, RBAC, and the controller in one step.
@@ -97,7 +96,39 @@ kubectl delete s3bucket my-app-assets
 
 > **Note:** The bucket must be empty before deletion. The operator will retry until it is empty.
 
-Sample manifests for both resources are in [`kubernetes/sample-manifests/`](./kubernetes/sample-manifests/).
+---
+
+### SQS Queue
+
+```yaml
+apiVersion: compute.cloud.com/v1
+kind: SQSQueue
+metadata:
+  name: my-app-queue
+spec:
+  queueName: my-app-queue-kube-provisioner
+  region: us-east-1
+  visibilityTimeoutSeconds: 30
+  messageRetentionSeconds: 86400
+  tags:
+    env: dev
+    team: platform
+```
+
+For a FIFO queue, set `fifo: true` and make sure `queueName` ends with `.fifo`.
+
+```sh
+kubectl apply -f my-queue.yaml
+kubectl get sqsqueues -w
+```
+
+The `QueueName`, `State`, and `QueueURL` columns populate once the queue is ready. The `QueueURL` is what your application uses to send and receive messages. To delete:
+
+```sh
+kubectl delete sqsqueue my-app-queue
+```
+
+Sample manifests for all resources are in [`kubernetes/sample-manifests/`](./kubernetes/sample-manifests/).
 
 ---
 

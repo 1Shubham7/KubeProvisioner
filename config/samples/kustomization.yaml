@@ -3,4 +3,5 @@ resources:
 - compute_v1_ec2-instance.yaml
 - compute_v1_ec2instance.yaml
 - compute_v1_s3bucket.yaml
+- compute_v1_sqsqueue.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

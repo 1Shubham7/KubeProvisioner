@@ -56,3 +56,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - sqsqueues
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - sqsqueues/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - compute.cloud.com
+  resources:
+  - sqsqueues/status
+  verbs:
+  - get
+  - patch
+  - update

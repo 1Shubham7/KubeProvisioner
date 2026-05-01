@@ -1,0 +1,98 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: sqsqueues.compute.cloud.com
+spec:
+  group: compute.cloud.com
+  names:
+    kind: SQSQueue
+    listKind: SQSQueueList
+    plural: sqsqueues
+    singular: sqsqueue
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The SQS queue name
+      jsonPath: .spec.queueName
+      name: QueueName
+      type: string
+    - description: The current state of the SQS queue
+      jsonPath: .status.state
+      name: State
+      type: string
+    - description: The SQS queue URL
+      jsonPath: .status.queueUrl
+      name: QueueURL
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: SQSQueue is the Schema for the sqsqueues API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of SQSQueue
+            properties:
+              queueName:
+                description: QueueName is the name of the SQS queue. FIFO queues must end with ".fifo".
+                type: string
+              region:
+                description: Region is the AWS region where the queue will be created.
+                type: string
+              fifo:
+                description: Fifo creates a FIFO queue when true. The QueueName must end with ".fifo".
+                type: boolean
+              visibilityTimeoutSeconds:
+                description: VisibilityTimeoutSeconds is the duration a message is hidden after being received.
+                format: int32
+                type: integer
+              messageRetentionSeconds:
+                description: MessageRetentionSeconds is how long messages are kept before being deleted.
+                format: int32
+                type: integer
+              tags:
+                additionalProperties:
+                  type: string
+                description: Tags are key-value pairs applied to the SQS queue.
+                type: object
+            required:
+            - queueName
+            - region
+            type: object
+          status:
+            description: status defines the observed state of SQSQueue
+            properties:
+              queueUrl:
+                description: QueueURL is the URL of the provisioned SQS queue.
+                type: string
+              queueArn:
+                description: QueueARN is the ARN of the provisioned SQS queue.
+                type: string
+              state:
+                description: State is the current lifecycle state of the queue.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
