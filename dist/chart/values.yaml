@@ -2,12 +2,14 @@
 controllerManager:
   replicas: 1
   container:
+    env: 
+      AWS_ACCESS_KEY_ID: YOUR_ACCESS_KEY
+      AWS_SECRET_ACCESS_KEY: YOUR_SECRET_KEY
     image:
-      repository: controller
+      repository: docker.io/1shubham7/kube-provisioner
       tag: latest
     imagePullPolicy: IfNotPresent
     args:
-      - "--leader-elect"
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
     resources:
